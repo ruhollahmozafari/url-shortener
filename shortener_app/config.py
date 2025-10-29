@@ -27,14 +27,8 @@ class Settings(BaseSettings):
     
     # Rate limiting
     rate_limit_per_minute: int = 60
-    
-    # CORS
-    allowed_origins: List[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
-    
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
+
+
 
 
 # Create settings instance
