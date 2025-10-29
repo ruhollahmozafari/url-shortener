@@ -7,7 +7,7 @@ class URL(Base):
     __tablename__ = "urls"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    long_url = Column(String, nullable=False, index=True)
+    long_url = Column(String, nullable=False,)
     # Note: unique=True automatically creates an index in SQLAlchemy (like Django)
     # Setting max length to 5 characters for short codes
     # Nullable=True allows two-step creation: first get ID, then generate short_code
