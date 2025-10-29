@@ -56,9 +56,3 @@ def client(db_session):
     app.dependency_overrides.clear()
 
 
-@pytest.fixture
-def sample_url_data():
-    """Sample URL data for testing"""
-    return {
-        "long_url": "https://www.example.com/very/long/url"
-    }
