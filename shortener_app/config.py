@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     short_url_length: int = 5  # Max 5 characters for short codes
     max_retries: int = 5
     
+    # Short code generation strategy
+    short_code_strategy: str = "base62"  # Options: "random", "base62"
+    short_code_salt: int = 1256  # Salt for Base62 strategy (4 digits)
+    
     # Rate limiting
     rate_limit_per_minute: int = 60
 

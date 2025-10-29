@@ -1,5 +1,3 @@
-import string
-import random
 from typing import Union
 
 from pydantic import HttpUrl
@@ -8,27 +6,15 @@ from sqlalchemy import update
 from shortener_app.models.url import URL
 from shortener_app.schemas.url import URLResponse, URLStats
 from shortener_app.config import settings
+from shortener_app.services.short_code_factory import ShortCodeFactory
+from shortener_app.services.short_code_strategies import ShortCodeStrategy
 
 
 class URLService:
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, ):
         self.db = db
-
-    def _generate_short_code(self, length: int = None) -> str:
-        """Generate a random short code"""
-        if length is None:
-            length = settings.short_url_length
-
-        characters = string.ascii_letters + string.digits
-        return ''.join(random.choice(characters) for _ in range(length))
-
-    def _get_unique_short_code(self) -> str:
-        """Generate a unique short code"""
-        for _ in range(settings.max_retries):
-            short_code = self._generate_short_code()
-            if not self.db.query(URL).filter(URL.short_code == short_code).first():
-                return short_code
-        raise Exception("Could not generate unique short code")
+        # Use provided strategy or create default from factory
+        self.short_code_strategy = ShortCodeFactory.create_strategy()
 
     def create_short_url(self, long_url: HttpUrl) -> URL:
         """Create a new short URL
@@ -36,16 +22,23 @@ class URLService:
         Note: Always creates a new short URL even if the long URL already exists.
         This allows tracking different sources/campaigns for the same destination URL.
         
+        Process:
+        1. Create URL with placeholder short_code to get auto-increment ID
+        2. Generate actual short_code using ID
+        3. Update with final short_code
+        
         Returns the SQLAlchemy model instance - Pydantic will auto-serialize it!
         """
-        # Always create new short URL for analytics tracking
-        short_code = self._get_unique_short_code()
-        url = URL(
-            long_url=str(long_url),
-            short_code=short_code
-        )
-
+        # Create URL record with placeholder to get auto-increment ID
+        # The short_code can be None (nullable) during creation
+        url = URL(long_url=str(long_url), short_code=None)
         self.db.add(url)
+        self.db.flush()  # Flush to get ID without committing
+        
+        # Now url.id is available - generate short code using strategy
+        url.short_code = self.short_code_strategy.generate(url.id, self.db)
+        
+        # Commit with final short code
         self.db.commit()
         self.db.refresh(url)
 

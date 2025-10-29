@@ -1,4 +1,4 @@
-from pydantic import BaseModel, HttpUrl, Field, computed_field
+from pydantic import BaseModel, HttpUrl, Field, computed_field, ConfigDict
 from typing import Optional
 from datetime import datetime
 from shortener_app.config import settings
@@ -32,8 +32,8 @@ class URLResponse(URLBase):
         """Computed field - automatically generated from short_code"""
         return f"{settings.base_url}/{self.short_code}"
 
-    class Config:
-        from_attributes = True  # Like DRF's ModelSerializer - auto-maps ORM fields
+    # Pydantic V2 style configuration
+    model_config = ConfigDict(from_attributes=True)
 
 
 class URLStats(BaseModel):
@@ -42,5 +42,5 @@ class URLStats(BaseModel):
     created_at: datetime
     last_accessed: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    # Pydantic V2 style configuration
+    model_config = ConfigDict(from_attributes=True)

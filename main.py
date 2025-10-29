@@ -14,12 +14,6 @@ app = FastAPI(
     debug=settings.debug
 )
 
-
-# Include routers
-app.include_router(urls.router, prefix="/api/v1")
-app.include_router(redirect.router)
-
-
 @app.get("/")
 def read_root():
     """Root endpoint with API information"""
@@ -35,4 +29,12 @@ def read_root():
 def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "environment": settings.environment}
+
+
+
+
+######## Include routers
+app.include_router(urls.router, prefix="/api/v1")
+app.include_router(redirect.router)
+
 
