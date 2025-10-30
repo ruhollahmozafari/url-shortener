@@ -16,6 +16,7 @@ import signal
 import sys
 from typing import Dict, List
 from datetime import datetime, timezone
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 from shortener_app.database.connection import SessionLocal
 from shortener_app.models.url import URL
@@ -57,11 +58,11 @@ class SimpleHitWorker:
         self.hit_counts: Dict[str, int] = {}  # In-memory counter
         self.processed_count = 0
 
-        # Configuration
-        self.batch_size = 100
-        self.update_interval = 30  # Update total_hits every 30 seconds
+        # Configuration from settings
+        self.batch_size = getattr(settings, 'queue_batch_size', 1)
+        self.update_interval = 1  # Update total_hits every 30 seconds
+        self.update_total_hits_url_limit = 1  # Update when this many URLs accumulated
         self.last_update = datetime.now(timezone.utc)
-        self.update_total_hits_url_limit = 1 # limit number to update the total-hits each time.
 
     async def start(self):
         """Start the worker process"""
@@ -105,12 +106,14 @@ class SimpleHitWorker:
                         # Don't acknowledge failed messages
                 
             except asyncio.CancelledError:
-                print("Worker task cancelled.")
+                print("⚠️  Worker task cancelled.")
                 break
             except Exception as e:
-                print(f"❌ Error processing batch: {e}")
+                print(f"❌ Error in main loop: {e}")
                 await asyncio.sleep(1)
         
+        # Graceful shutdown: flush pending hits
+        await self._graceful_shutdown()
         print("🛑 Simple Hit Worker stopped")
     
     async def _process_batch(self, messages: List[HitEvent]):
@@ -151,12 +154,11 @@ class SimpleHitWorker:
             return
         
         db = self.db_session_factory()
+        updated_count = 0
         
         try:
             # Atomic batch update using SQL UPDATE
             # This prevents race conditions - database handles the increment atomically
-            from sqlalchemy import update
-            
             for short_code, count in self.hit_counts.items():
                 # Atomic UPDATE: total_hits = total_hits + count
                 # This is thread-safe and works with multiple workers
@@ -170,18 +172,18 @@ class SimpleHitWorker:
                 
                 if result.rowcount == 0:
                     print(f"⚠️  URL not found: {short_code}")
+                else:
+                    updated_count += 1
             
             # Single commit for all updates
             db.commit()
             
-            # Count how many URLs were updated
-            updated_count = len(self.hit_counts)
-            
-            # Reset counter
+            # Reset counter and update timestamp
             self.hit_counts.clear()
             self.last_update = datetime.now(timezone.utc)
             
-            print(f"📊 Updated total_hits for {updated_count} URLs")
+            if updated_count > 0:
+                print(f"📊 Updated total_hits for {updated_count} URLs")
             
         except Exception as e:
             db.rollback()
@@ -189,6 +191,16 @@ class SimpleHitWorker:
             raise
         finally:
             db.close()
+    
+    async def _graceful_shutdown(self):
+        """Flush pending hits before shutdown"""
+        if self.hit_counts:
+            print(f"🔄 Flushing {len(self.hit_counts)} pending hits...")
+            try:
+                await self._update_total_hits()
+                print("✅ All hits flushed successfully")
+            except Exception as e:
+                print(f"⚠️  Failed to flush hits: {e}")
     
     def _signal_handler(self, signum, frame):
         """Handle signals for graceful shutdown"""

@@ -47,14 +47,14 @@ class Settings(BaseSettings):
     queue_backend: str = "redis_streams"  # Options: "redis_streams", "memory"
     queue_name: str = "url_hits"
     queue_consumer_group: str = "url_workers"
-    queue_batch_size: int = 100  # Number of messages to process at once
+    queue_batch_size: int = 1  # Number of messages to process at once
     queue_worker_interval: int = 5  # Worker poll interval in seconds
     
     # Hit Storage settings (Analytics Database)
     hit_storage_backend: str = "sqlite"  # Options: "sqlite", "clickhouse"
     hit_storage_sqlite_path: str = "analytics.db"  # SQLite database path
     hit_storage_clickhouse_url: str = "http://localhost:8123"  # ClickHouse HTTP endpoint
-    hit_storage_buffer_size: int = 1000  # Buffer size for batching (ClickHouse)
+    hit_storage_buffer_size: int = 1  # Buffer size for batching (ClickHouse)
     
     # Rate limiting
     rate_limit_per_minute: int = 60
