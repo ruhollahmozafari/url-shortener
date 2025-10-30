@@ -2,7 +2,7 @@
 Data models for queue messages.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -31,8 +31,9 @@ class HitEvent(BaseModel):
     # Queue metadata (set by queue consumer)
     message_id: Optional[str] = Field(None, description="Queue message ID (for acknowledgment)")
     
-    class Config:
-        json_schema_extra = {
+    # Pydantic V2 style configuration
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "short_code": "abc12",
                 "timestamp": "2025-10-29T10:30:00",
@@ -44,4 +45,5 @@ class HitEvent(BaseModel):
                 "browser": "Chrome"
             }
         }
+    )
 
