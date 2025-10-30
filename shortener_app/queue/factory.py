@@ -42,19 +42,29 @@ class QueueFactory:
         if backend == QueueBackend.REDIS_STREAMS:
             import redis
             
-            # Get config from settings
-            redis_client = redis.from_url(
-                settings.redis_url,
-                decode_responses=False,
-                socket_connect_timeout=5,
-                socket_timeout=5,
-            )
-            
-            cls._instance = RedisStreamQueue(
-                redis_client,
-                settings.queue_consumer_group
-            )
-            print("✅ Redis queue initialized")
+            try:
+                # Get config from settings
+                redis_client = redis.from_url(
+                    settings.redis_url,
+                    decode_responses=False,
+                    socket_connect_timeout=2,  # Reduced timeout
+                    socket_timeout=2,          # Reduced timeout
+                )
+                
+                # Test connection immediately
+                redis_client.ping()
+                
+                cls._instance = RedisStreamQueue(
+                    redis_client,
+                    settings.queue_consumer_group
+                )
+                print("✅ Redis queue initialized")
+                
+            except Exception as e:
+                print(f"⚠️  Redis connection failed: {e}")
+                print(f"⚠️  Falling back to in-memory queue")
+                cls._instance = InMemoryQueue()
+                print("✅ In-memory queue initialized (fallback)")
             
         elif backend == QueueBackend.MEMORY:
             cls._instance = InMemoryQueue()

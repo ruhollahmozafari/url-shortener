@@ -44,16 +44,26 @@ class CacheFactory:
         if backend == CacheBackend.REDIS:
             import redis
             
-            # Get Redis URL from settings (not from parameters!)
-            redis_client = redis.from_url(
-                settings.redis_url,
-                decode_responses=False,
-                socket_connect_timeout=5,
-                socket_timeout=5,
-            )
-            
-            cls._instance = RedisCache(redis_client)
-            print(f"✅ Redis cache initialized")
+            try:
+                # Get Redis URL from settings (not from parameters!)
+                redis_client = redis.from_url(
+                    settings.redis_url,
+                    decode_responses=False,
+                    socket_connect_timeout=2,  # Reduced timeout
+                    socket_timeout=2,          # Reduced timeout
+                )
+                
+                # Test connection immediately
+                redis_client.ping()
+                
+                cls._instance = RedisCache(redis_client)
+                print(f"✅ Redis cache initialized")
+                
+            except Exception as e:
+                print(f"⚠️  Redis connection failed: {e}")
+                print(f"⚠️  Falling back to in-memory cache")
+                cls._instance = InMemoryCache()
+                print("✅ In-memory cache initialized (fallback)")
             
         elif backend == CacheBackend.MEMORY:
             cls._instance = InMemoryCache()
