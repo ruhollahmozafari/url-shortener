@@ -193,9 +193,12 @@ class RedisStreamQueue(QueueStrategy):
             
             # Read from stream using consumer group
             # '>' means "messages never delivered to other consumers"
+            import socket
+            consumer_name = f"worker-{socket.gethostname()}-{id(self)}"
+            
             messages = self.redis.xreadgroup(
                 groupname=self.consumer_group,
-                consumername='worker-1',  # TODO: Make this dynamic per worker
+                consumername=consumer_name,  # Dynamic consumer name per worker instance
                 streams={queue_name: '>'},
                 count=batch_size,
                 block=block_time
