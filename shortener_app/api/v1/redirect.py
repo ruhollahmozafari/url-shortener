@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import RedirectResponse
-from datetime import datetime
+from datetime import datetime, timezone
 from shortener_app.services.url_service import URLService
 from shortener_app.queue.models import HitEvent
 from shortener_app.dependencies import get_url_service, get_queue
@@ -44,7 +44,7 @@ async def redirect_to_long_url(
     # Worker will process this and update database
     hit_event = HitEvent(
         short_code=short_code,
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(timezone.utc),
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent"),
         referer=request.headers.get("referer"),

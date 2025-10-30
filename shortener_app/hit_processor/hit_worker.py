@@ -15,7 +15,7 @@ import asyncio
 import signal
 import sys
 from typing import Dict, List
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from shortener_app.database.connection import SessionLocal
 from shortener_app.models.url import URL
@@ -56,12 +56,13 @@ class SimpleHitWorker:
         self.running = False
         self.hit_counts: Dict[str, int] = {}  # In-memory counter
         self.processed_count = 0
-        
+
         # Configuration
-        self.batch_size = 1
-        self.update_interval = 1  # Update total_hits every 30 seconds
-        self.last_update = datetime.utcnow()
-    
+        self.batch_size = 100
+        self.update_interval = 30  # Update total_hits every 30 seconds
+        self.last_update = datetime.now(timezone.utc)
+        self.update_total_hits_url_limit = 1 # limit number to update the total-hits each time.
+
     async def start(self):
         """Start the worker process"""
         self.running = True
@@ -133,41 +134,54 @@ class SimpleHitWorker:
     
     async def _update_total_hits_if_needed(self):
         """Update total_hits in main DB if needed"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         # Update if enough time has passed or too many hits accumulated
         should_update = (
             (now - self.last_update).seconds >= self.update_interval or
-            len(self.hit_counts) >= 50  # Update every 50 different URLs
+            len(self.hit_counts) >= self.update_total_hits_url_limit
         )
         
         if should_update and self.hit_counts:
             await self._update_total_hits()
     
     async def _update_total_hits(self):
-        """Update total_hits in main database (batch update)"""
+        """Update total_hits in main database (atomic batch update)"""
         if not self.hit_counts:
             return
         
         db = self.db_session_factory()
         
         try:
-            # Batch update all URLs
+            # Atomic batch update using SQL UPDATE
+            # This prevents race conditions - database handles the increment atomically
+            from sqlalchemy import update
+            
             for short_code, count in self.hit_counts.items():
-                url = db.query(URL).filter(URL.short_code == short_code).first()
-                if url:
-                    url.total_hits += count
-                else:
+                # Atomic UPDATE: total_hits = total_hits + count
+                # This is thread-safe and works with multiple workers
+                stmt = (
+                    update(URL)
+                    .where(URL.short_code == short_code)
+                    .values(total_hits=URL.total_hits + count)
+                )
+                
+                result = db.execute(stmt)
+                
+                if result.rowcount == 0:
                     print(f"⚠️  URL not found: {short_code}")
             
             # Single commit for all updates
             db.commit()
             
+            # Count how many URLs were updated
+            updated_count = len(self.hit_counts)
+            
             # Reset counter
             self.hit_counts.clear()
-            self.last_update = datetime.utcnow()
+            self.last_update = datetime.now(timezone.utc)
             
-            print(f"📊 Updated total_hits for {len(self.hit_counts)} URLs")
+            print(f"📊 Updated total_hits for {updated_count} URLs")
             
         except Exception as e:
             db.rollback()

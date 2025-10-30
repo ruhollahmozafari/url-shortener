@@ -130,6 +130,7 @@ class SQLiteHitStorage(HitStorageStrategy):
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
+        # Create table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS url_hits (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -140,10 +141,19 @@ class SQLiteHitStorage(HitStorageStrategy):
                 referer TEXT,
                 country TEXT,
                 device_type TEXT,
-                browser TEXT,
-                INDEX(short_code),
-                INDEX(timestamp)
+                browser TEXT
             )
+        """)
+        
+        # Create indexes separately (SQLite syntax)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_short_code 
+            ON url_hits(short_code)
+        """)
+        
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_timestamp 
+            ON url_hits(timestamp)
         """)
         
         conn.commit()

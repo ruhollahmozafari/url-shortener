@@ -3,7 +3,7 @@ Data models for queue messages.
 """
 
 from pydantic import BaseModel, Field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 
@@ -16,7 +16,7 @@ class HitEvent(BaseModel):
     """
     
     short_code: str = Field(..., description="The short code that was accessed")
-    timestamp: datetime = Field(default_factory=datetime.utcnow, description="When the hit occurred")
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="When the hit occurred")
     
     # Request metadata
     ip_address: Optional[str] = Field(None, description="Client IP address")
@@ -27,6 +27,9 @@ class HitEvent(BaseModel):
     country: Optional[str] = Field(None, description="Country code (e.g., US, UK)")
     device_type: Optional[str] = Field(None, description="Device type (mobile, desktop, tablet)")
     browser: Optional[str] = Field(None, description="Browser name")
+    
+    # Queue metadata (set by queue consumer)
+    message_id: Optional[str] = Field(None, description="Queue message ID (for acknowledgment)")
     
     class Config:
         json_schema_extra = {
