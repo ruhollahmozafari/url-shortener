@@ -3,6 +3,9 @@ from shortener_app.config import settings
 from shortener_app.database.connection import engine, Base
 from shortener_app.api.v1 import urls, redirect
 
+# Import models to ensure they're registered with Base
+from shortener_app.models import URL
+
 # Create database tables
 Base.metadata.create_all(bind=engine)
 

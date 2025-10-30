@@ -21,7 +21,7 @@ class URLResponse(URLBase):
     """
     id: int
     short_code: str
-    hits: int
+    total_hits: int  # Renamed from hits to match model
     is_active: bool
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -38,7 +38,7 @@ class URLResponse(URLBase):
 
 class URLStats(BaseModel):
     short_code: str
-    hits: int
+    total_hits: int  # Renamed from hits to match model
     created_at: datetime
     last_accessed: Optional[datetime] = None
 
